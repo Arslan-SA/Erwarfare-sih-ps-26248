@@ -28,3 +28,4 @@ yarn-error.log*
 Thumbs.db
 .vscode/
 .idea/
+git_commit_ledger.md
