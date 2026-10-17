@@ -1,0 +1,146 @@
+scenario_id: SCEN-MALACCA-001
+name: "Strait of Malacca - Littoral Defense & Electronic Interdiction"
+tactical_context: "High-density maritime traffic choke point under active adversary electronic warfare jamming. Trainees must de-conflict ambiguous surface contacts and coordinate cross-domain fires without committing fratricide."
+difficulty: "MEDIUM"
+simulated_duration_seconds: 420
+roles:
+  - COMMANDER
+  - UNIT_A
+  - UNIT_B
+  - INSTRUCTOR
+
+initial_entities:
+  - id: TRK-001
+    name: "INS Kora (FPV-Bravo)"
+    domain: SEA
+    classification: FRIENDLY
+    x: 32.0
+    y: 65.0
+    speed_knots: 18.0
+    heading_deg: 45.0
+    status: ACTIVE
+    observed_by_roles:
+      - COMMANDER
+      - UNIT_A
+      - UNIT_B
+
+  - id: TRK-002
+    name: "Unknown Surface Contact (M/T Ocean Grace / Type 054)"
+    domain: SEA
+    classification: AMBIGUOUS
+    x: 58.0
+    y: 42.0
+    speed_knots: 14.0
+    heading_deg: 290.0
+    status: ACTIVE
+    observed_by_roles:
+      - COMMANDER
+      - UNIT_A
+      - UNIT_B
+    divergence_note: "Unit A classifies as Hostile Frigate; Unit B reports civil AIS transponder"
+
+  - id: TRK-003
+    name: "P-8I Poseidon Maritime Patrol"
+    domain: AIR
+    classification: FRIENDLY
+    x: 20.0
+    y: 25.0
+    speed_knots: 240.0
+    heading_deg: 120.0
+    status: ACTIVE
+    observed_by_roles:
+      - COMMANDER
+      - UNIT_A
+
+  - id: TRK-004
+    name: "Boghammer Fast Attack Craft"
+    domain: SEA
+    classification: HOSTILE
+    x: 82.0
+    y: 30.0
+    speed_knots: 32.0
+    heading_deg: 215.0
+    status: ACTIVE
+    observed_by_roles:
+      - COMMANDER
+      - UNIT_B
+
+timeline_events:
+  - sim_time_offset: 10
+    event_type: INTEL_FEED
+    domain: SEA
+    authoritative_data:
+      source_unit: HQ_C2
+      title: "Maritime Intelligence Summary"
+      content: "All units: Adversary surface action group operating beyond radar horizon. Exercise extreme caution in Sector 4 choke point."
+    default_recipients:
+      - COMMANDER
+      - UNIT_A
+      - UNIT_B
+    degradation_override: NORMAL
+
+  - sim_time_offset: 60
+    event_type: INTEL_FEED
+    domain: AIR
+    authoritative_data:
+      source_unit: UNIT_A
+      title: "Radar Intercept TRK-002"
+      content: "Forward radar paints TRK-002 at bearing 065. Radar cross-section consistent with modern warship."
+    default_recipients:
+      - COMMANDER
+    degradation_override: NORMAL
+
+  - sim_time_offset: 120
+    event_type: EW_SURGE
+    domain: CYBER
+    authoritative_data:
+      intensity: 85
+    default_recipients: []
+
+  - sim_time_offset: 130
+    event_type: INTEL_FEED
+    domain: CYBER
+    authoritative_data:
+      source_unit: SIGINT
+      title: "Tactical Data-link Warning"
+      content: "Heavy broadband barrage jamming detected across 2.4 - 5.8 GHz. Tactical radio link degradation expected."
+    default_recipients:
+      - COMMANDER
+      - UNIT_A
+      - UNIT_B
+    degradation_override: NORMAL
+
+  - sim_time_offset: 180
+    event_type: INTEL_FEED
+    domain: SEA
+    authoritative_data:
+      source_unit: UNIT_A
+      title: "Hostile Track Declaration"
+      content: "Unit A targeting radar locks TRK-002. Recommending immediate Harpoon engagement."
+      divergence_variant: "VARIANT_ALPHA"
+    default_recipients:
+      - COMMANDER
+    degradation_override: DELAYED
+
+  - sim_time_offset: 210
+    event_type: INTEL_FEED
+    domain: SEA
+    authoritative_data:
+      source_unit: UNIT_B
+      title: "Contradictory AIS Report"
+      content: "Unit B coastal intercept confirms AIS transponder on TRK-002: Oil tanker M/T Ocean Grace. Do not fire without visual verification."
+      divergence_variant: "VARIANT_BRAVO"
+    default_recipients:
+      - COMMANDER
+    degradation_override: CONFLICTING
+
+  - sim_time_offset: 300
+    event_type: INTEL_FEED
+    domain: SEA
+    authoritative_data:
+      source_unit: HQ_C2
+      title: "ROE Action Window"
+      content: "Commander decision window open: Authorize strike or hold for electro-optical cross-check."
+    default_recipients:
+      - COMMANDER
+    degradation_override: NORMAL
