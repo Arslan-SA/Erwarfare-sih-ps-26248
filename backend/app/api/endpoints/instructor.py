@@ -101,7 +101,7 @@ async def inject_event(session_id: str, injection: InstructorInjection) -> dict[
             "message": msg.model_dump(),
         })
 
-    elif inj_type == "SET_EW_INTENSITY":
+    elif inj_type in ("SET_EW_INTENSITY", "EW_OVERRIDE"):
         intensity = injection.payload.get("intensity", 80)
         mgr.ew_engine.set_global_intensity(intensity)
 
