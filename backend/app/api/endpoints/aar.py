@@ -63,3 +63,37 @@ def export_aar_csv(session_id: str) -> Response:
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename=aar_report_{session_id}.csv"},
     )
+
+
+@router.get("/export/raw-events")
+def export_raw_events_csv(session_id: str) -> Response:
+    """Export all raw scenario feeds, telemetry, verifications, and decisions as CSV."""
+    mgr = session_service.get_session(session_id)
+    if not mgr:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    csv_content = AARService.export_raw_events_csv(mgr)
+
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=raw_events_{session_id}.csv"},
+    )
+
+
+@router.get("/export/html", response_class=Response)
+@router.get("/export/pdf", response_class=Response)
+def export_aar_report_printable(session_id: str) -> Response:
+    """Export formal military AAR briefing dossier with embedded vector SVG diagrams and print-to-PDF layout."""
+    mgr = session_service.get_session(session_id)
+    if not mgr:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    html_content = AARService.generate_html_report(mgr)
+
+    return Response(
+        content=html_content,
+        media_type="text/html; charset=utf-8",
+        headers={"Content-Disposition": f"inline; filename=aar_briefing_{session_id}.html"},
+    )
+

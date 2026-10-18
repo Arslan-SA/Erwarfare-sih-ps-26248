@@ -36,21 +36,17 @@ export default function AARView() {
 
   const handleExportCSV = () => {
     if (!aarEvaluation) return;
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      "SessionId,DecisionMomentT,Classification,AutomatedScore,InstructorScore,CompositeScore\n" +
-      `${aarEvaluation.sessionId},${aarEvaluation.decisionMomentT},${aarEvaluation.classification},${aarEvaluation.automatedScores.overallAutomated},${aarEvaluation.instructorScores.overallInstructor},${aarEvaluation.finalCompositeScore}\n`;
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `AAR_Report_${aarEvaluation.sessionId}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    window.open(`/api/sessions/${aarEvaluation.sessionId}/aar/export/csv`, "_blank");
+  };
+
+  const handleExportRawEvents = () => {
+    if (!aarEvaluation) return;
+    window.open(`/api/sessions/${aarEvaluation.sessionId}/aar/export/raw-events`, "_blank");
   };
 
   const handleExportPDF = () => {
-    window.print();
+    if (!aarEvaluation) return;
+    window.open(`/api/sessions/${aarEvaluation.sessionId}/aar/export/html`, "_blank");
   };
 
   if (!aarEvaluation) {
@@ -73,7 +69,7 @@ export default function AARView() {
   return (
     <div className="aar-container">
       {/* Header bar */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "12px", borderBottom: "1px solid var(--border-color)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "12px", borderBottom: "1px solid var(--border-color)", flexWrap: "wrap", gap: "10px" }}>
         <div>
           <h2 style={{ fontSize: "1.2rem", color: "var(--text-cyan)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
             After Action Review (AAR) & Forensic Decision Analysis
@@ -83,12 +79,18 @@ export default function AARView() {
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: "8px" }}>
-          <button onClick={handleExportCSV} className="btn-tactical btn-outline" style={{ fontSize: "0.75rem", padding: "6px 12px" }}>
-            Export CSV
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          <button onClick={handleExportCSV} className="btn-tactical btn-outline" style={{ fontSize: "0.75rem", padding: "6px 12px" }} title="Export metrics summary CSV">
+            Metrics CSV
           </button>
-          <button onClick={handleExportPDF} className="btn-tactical btn-cyan" style={{ fontSize: "0.75rem", padding: "6px 12px" }}>
-            Print / Export PDF
+          <button onClick={handleExportRawEvents} className="btn-tactical btn-outline" style={{ fontSize: "0.75rem", padding: "6px 12px" }} title="Export complete audit trail and raw telemetry CSV">
+            Raw Telemetry CSV
+          </button>
+          <button onClick={handleExportPDF} className="btn-tactical btn-cyan" style={{ fontSize: "0.75rem", padding: "6px 12px" }} title="Open printable military dossier with vector SVG diagrams">
+            Formal Dossier / PDF
+          </button>
+          <button onClick={() => window.print()} className="btn-tactical btn-outline" style={{ fontSize: "0.75rem", padding: "6px 12px" }}>
+            Print View
           </button>
           <button onClick={() => setActiveView("TACTICAL")} className="btn-tactical btn-outline" style={{ fontSize: "0.75rem", padding: "6px 12px" }}>
             Back to Tactical

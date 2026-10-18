@@ -233,3 +233,103 @@ class AARService:
         writer.writerow(["Evaluator Notes", evaluation.evaluator_notes])
 
         return output.getvalue()
+
+    @staticmethod
+    def export_raw_events_csv(state_mgr: SimulationStateManager) -> str:
+        """Export raw telemetry, feeds, verifications, and decisions for scientific data analysis."""
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        writer.writerow([
+            "RECORD_TYPE",
+            "SIM_TIMESTAMP",
+            "ID",
+            "SOURCE_OR_ROLE",
+            "TARGET_OR_RECIPIENT",
+            "DOMAIN",
+            "TITLE_OR_ACTION",
+            "DEGRADATION_OR_STATUS",
+            "DIVERGENCE_VARIANT",
+            "CERTAINTY_OR_CONFIDENCE",
+            "DETAIL_PAYLOAD",
+        ])
+
+        # 1. Feed messages
+        for f in state_mgr.all_feed_messages:
+            writer.writerow([
+                "INTEL_FEED",
+                f.sim_timestamp,
+                f.id,
+                f.source_unit,
+                f.target_role.value,
+                f.domain.value,
+                f.title,
+                f.degradation_type.value,
+                f.divergence_variant or "NONE",
+                "VERIFIED" if f.is_verified else "UNVERIFIED",
+                f.content,
+            ])
+
+        # 2. Verifications
+        for v in state_mgr.verification_requests:
+            writer.writerow([
+                "VERIFICATION_CROSS_CHECK",
+                v.sim_timestamp,
+                v.id,
+                v.from_role.value,
+                v.to_role.value,
+                "TACTICAL",
+                v.target_entity_id,
+                v.status,
+                "NONE",
+                "N/A",
+                f"Query: {v.query} | Response: {v.response}",
+            ])
+
+        # 3. Decisions
+        for d in state_mgr.trainee_decisions:
+            writer.writerow([
+                "TRAINEE_DECISION",
+                d.sim_timestamp,
+                d.id,
+                d.role.value,
+                d.target_entity_id,
+                "COMMAND",
+                d.action.value,
+                "SUBMITTED",
+                "EVIDENCE:" + ",".join(d.evidence_message_ids),
+                f"{d.confidence_score}%",
+                f"Rationale: {d.rationale} | Risk: {d.assumed_risk}",
+            ])
+
+        # 4. Forensic snapshots
+        for s in state_mgr.forensic_snapshots:
+            writer.writerow([
+                "FORENSIC_SNAPSHOT",
+                s.get("sim_timestamp", 0),
+                s.get("snapshot_id", ""),
+                "SYSTEM_CLOCK",
+                "ALL_ROLES",
+                "GLOBAL",
+                s.get("snapshot_type", "PERIODIC"),
+                f"EW_INTENSITY:{s.get('ew_conditions', {}).get('global_intensity', 0)}%",
+                "NONE",
+                "100%",
+                f"Entities: {len(s.get('ground_truth_entities', []))} | Feeds: {s.get('feed_count', 0)}",
+            ])
+
+        return output.getvalue()
+
+    @staticmethod
+    def generate_html_report(
+        state_mgr: SimulationStateManager,
+        instructor_scores: Optional[InstructorScores] = None,
+        evaluator_notes: str = "",
+    ) -> str:
+        """Generate standalone printable HTML/PDF report."""
+        from app.services.report_generator import AARReportGenerator
+        evaluation = AARService.evaluate_session(
+            state_mgr, instructor_scores=instructor_scores, evaluator_notes=evaluator_notes
+        )
+        return AARReportGenerator.generate_html_report(evaluation, state_mgr)
+
