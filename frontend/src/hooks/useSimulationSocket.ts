@@ -7,8 +7,10 @@ import type { FeedMessage } from "../types/simulation";
  * Manages WebSocket connectivity to FastAPI backend with an integrated
  * scenario clock generator for standalone prototype execution (T=0 to T=7).
  */
-export default function useSimulationSocket(sessionId: string = "demo-session", token: string = "demo-token") {
+export default function useSimulationSocket() {
   const {
+    currentUser,
+    currentRole,
     clockRunning,
     setSimTime,
     setConnectionStatus,
@@ -22,7 +24,14 @@ export default function useSimulationSocket(sessionId: string = "demo-session", 
 
   // WebSocket connection attempt
   useEffect(() => {
-    const wsUrl = `ws://localhost:8000/ws/session/${sessionId}?token=${token}`;
+    if (!currentUser) {
+      setConnectionStatus("disconnected");
+      return;
+    }
+
+    const sessionId = currentUser.sessionId || "SES-MALACCA-001";
+    const role = currentRole || currentUser.role;
+    const wsUrl = `ws://${window.location.hostname}:8000/ws/${sessionId}/${role}`;
     let isMounted = true;
 
     try {
@@ -68,7 +77,7 @@ export default function useSimulationSocket(sessionId: string = "demo-session", 
         wsRef.current.close();
       }
     };
-  }, [sessionId, token, setConnectionStatus, setSimTime, addFeed, triggerAAR]);
+  }, [currentUser, currentRole, setConnectionStatus, setSimTime, addFeed, triggerAAR]);
 
   // Simulation Clock Tick Loop (Runs locally if clockRunning is true)
   useEffect(() => {

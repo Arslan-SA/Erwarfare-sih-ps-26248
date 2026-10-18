@@ -1,4 +1,3 @@
-// src/App.tsx
 import { useState } from "react";
 import Header from "./components/Header";
 import TacticalMap from "./components/TacticalMap";
@@ -7,6 +6,7 @@ import DecisionDock from "./components/DecisionDock";
 import InstructorPanel from "./components/InstructorPanel";
 import AARView from "./components/AARView";
 import VerificationModal from "./components/VerificationModal";
+import LoginPage from "./components/LoginPage";
 import useSimulationSocket from "./hooks/useSimulationSocket";
 import { useSimulation } from "./store/simulation";
 
@@ -14,8 +14,13 @@ export default function App() {
   // Initialize WebSocket & Scenario Simulation Engine
   useSimulationSocket();
 
-  const { activeView, currentRole } = useSimulation();
+  const { currentUser, activeView, currentRole } = useSimulation();
   const [isVerificationOpen, setIsVerificationOpen] = useState<boolean>(false);
+
+  // Authentication Gate: Render secure military login if not authenticated
+  if (!currentUser) {
+    return <LoginPage />;
+  }
 
   return (
     <div className="app-container">

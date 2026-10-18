@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type {
   Role,
+  AuthUser,
   TacticalEntity,
   FeedMessage,
   TraineeDecision,
@@ -12,6 +13,7 @@ import type {
 } from "../types/simulation";
 
 export interface SimulationState {
+  currentUser: AuthUser | null;
   currentRole: Role;
   activeView: "TACTICAL" | "AAR";
   simTime: number; // T=0 to T=7 scenario timeline
@@ -48,6 +50,8 @@ export interface SimulationState {
   aarEvaluation: AAREvaluation | null;
 
   // Actions
+  login: (user: AuthUser) => void;
+  logout: () => void;
   setCurrentRole: (role: Role) => void;
   setActiveView: (view: "TACTICAL" | "AAR") => void;
   setSimTime: (t: number) => void;
@@ -135,9 +139,21 @@ const INITIAL_FEEDS: FeedMessage[] = [
   },
 ];
 
+const getInitialUser = (): AuthUser | null => {
+  try {
+    const raw = typeof window !== "undefined" ? localStorage.getItem("sih_auth_user") : null;
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const initialUser = getInitialUser();
+
 export const useSimulation = create<SimulationState>()(
   devtools((set, get) => ({
-    currentRole: "COMMANDER",
+    currentUser: initialUser,
+    currentRole: initialUser ? initialUser.role : "COMMANDER",
     activeView: "TACTICAL",
     simTime: 0,
     clockRunning: false,
@@ -156,7 +172,37 @@ export const useSimulation = create<SimulationState>()(
     snapshotAtT5: null,
     aarEvaluation: null,
 
-    setCurrentRole: (role) => set({ currentRole: role }),
+    login: (user) => {
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("sih_auth_user", JSON.stringify(user));
+        }
+      } catch (err) {
+        console.error("Failed to persist user in localStorage", err);
+      }
+      set({ currentUser: user, currentRole: user.role, activeView: "TACTICAL" });
+    },
+
+    logout: () => {
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("sih_auth_user");
+        }
+      } catch (err) {
+        console.error("Failed to clear user from localStorage", err);
+      }
+      set({ currentUser: null, activeView: "TACTICAL" });
+    },
+
+    setCurrentRole: (role) => {
+      const { currentUser } = get();
+      // Instructors can inspect any station; trainees are locked to their authenticated duty station
+      if (!currentUser || currentUser.role === "INSTRUCTOR" || currentUser.role === role) {
+        set({ currentRole: role });
+      } else {
+        console.warn(`RBAC: Trainee ${currentUser.callSign} (${currentUser.role}) cannot switch to ${role}`);
+      }
+    },
     setActiveView: (view) => set({ activeView: view }),
     setSimTime: (t) => set({ simTime: t }),
     setClockRunning: (running) => set({ clockRunning: running }),

@@ -2,6 +2,15 @@
 
 export type Role = "INSTRUCTOR" | "COMMANDER" | "UNIT_A" | "UNIT_B";
 
+export interface AuthUser {
+  serviceId: string;
+  callSign: string;
+  role: Role;
+  sessionId: string;
+  clearanceLevel: string;
+  token: string;
+}
+
 export type DegradationType = "NORMAL" | "DELAYED" | "DROPOUT" | "CONFLICTING";
 
 export type EntityDomain = "AIR" | "SEA" | "LAND" | "CYBER";
