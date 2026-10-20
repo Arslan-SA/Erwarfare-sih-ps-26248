@@ -4,13 +4,15 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.endpoints.websocket import router as ws_router
 from app.api.router import api_router
 from app.core.config import settings
+from app.core.database import db_manager
 from app.core.logging import get_logger, setup_logging
 from app.services.session_service import session_service
 
@@ -22,6 +24,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Startup and shutdown lifecycle."""
     setup_logging(debug=settings.DEBUG)
     logger.info("Initializing SIH-26248 Backend Application", env="development" if settings.DEBUG else "production")
+
+    # Initialize authoritative database (Supabase PostgreSQL / local SQLite fallback)
+    await db_manager.initialize()
+    logger.info("Database initialized and verified", db_type=db_manager.database_type)
 
     # Pre-seed a default session so the system is ready immediately
     default_session = session_service.get_or_create_default_session()
@@ -50,11 +56,20 @@ app.add_middleware(
 
 # API Routers
 app.include_router(api_router, prefix="/api")
-from app.api.endpoints.websocket import router as ws_router
 app.include_router(ws_router)
 
 
 @app.get("/health")
 def health_check() -> dict[str, str]:
     """Liveness probe."""
-    return {"status": "HEALTHY", "app": settings.APP_NAME}
+    return {
+        "status": "HEALTHY",
+        "app": settings.APP_NAME,
+        "database": db_manager.database_type,
+    }
+
+
+@app.get("/api/system/database-status")
+async def get_database_status() -> dict[str, Any]:
+    """Introspection endpoint for database connectivity, active engine, and table status."""
+    return await db_manager.get_status()

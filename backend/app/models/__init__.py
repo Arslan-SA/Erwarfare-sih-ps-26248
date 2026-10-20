@@ -1,5 +1,6 @@
 # backend/app/models/__init__.py
 from app.models.tables import (
+    UserAccount,
     Scenario,
     SimulationSession,
     SessionUser,
@@ -17,6 +18,7 @@ from app.models.tables import (
 )
 
 __all__ = [
+    "UserAccount",
     "Scenario",
     "SimulationSession",
     "SessionUser",

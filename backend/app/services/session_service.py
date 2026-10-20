@@ -108,7 +108,7 @@ class SessionService:
         )
 
     async def submit_decision(self, session_id: str, decision: TraineeDecisionCreate) -> TraineeDecisionSchema:
-        """Record trainee decision and notify clients."""
+        """Record trainee decision, persist to database, and notify clients."""
         state_mgr = self.get_session(session_id)
         if not state_mgr:
             raise KeyError(f"Session {session_id} not found")
@@ -122,12 +122,62 @@ class SessionService:
                 "decision": saved.model_dump(),
             })
 
+        # Persist to database asynchronously
+        try:
+            from sqlalchemy import select
+            from app.core.database import db_manager
+            from app.models.tables import DecisionRationale as DBRationale
+            from app.models.tables import SimulationSession as DBSession
+            from app.models.tables import TraineeDecision as DBDecision
+
+            if db_manager._initialized and db_manager.session_factory:
+                async with db_manager.session_factory() as db_session:
+                    stmt = select(DBSession).where(DBSession.session_code == session_id)
+                    res = await db_session.execute(stmt)
+                    db_sess = res.scalar_one_or_none()
+                    if not db_sess:
+                        db_sess = DBSession(
+                            session_code=session_id,
+                            status=state_mgr.status.value,
+                            current_sim_time=state_mgr.clock.current_sim_time,
+                        )
+                        db_session.add(db_sess)
+                        await db_session.flush()
+
+                    db_dec = DBDecision(
+                        session_id=db_sess.id,
+                        user_id=decision.role.value,
+                        role=decision.role.value,
+                        sim_timestamp=decision.sim_timestamp,
+                        action_type=decision.action.value,
+                        target_entity=decision.target_entity_id,
+                        confidence_score=int(decision.confidence_score),
+                        decision_payload={
+                            "action": decision.action.value,
+                            "target": decision.target_entity_id,
+                            "assumed_risk": decision.assumed_risk,
+                        },
+                    )
+                    db_session.add(db_dec)
+                    await db_session.flush()
+
+                    db_rat = DBRationale(
+                        decision_id=db_dec.id,
+                        raw_notes=decision.rationale,
+                        evidence_message_ids=decision.evidence_message_ids,
+                        structured_reasons={"assumed_risk": decision.assumed_risk},
+                    )
+                    db_session.add(db_rat)
+                    await db_session.commit()
+        except Exception as e:
+            logger.warn("Decision database persistence fallback", error=str(e))
+
         return saved
 
     async def submit_verification(
         self, session_id: str, request: VerificationRequestCreate, from_role: Role
     ) -> VerificationRequestSchema:
-        """Record verification inquiry and return result."""
+        """Record verification inquiry, persist to database, and return result."""
         state_mgr = self.get_session(session_id)
         if not state_mgr:
             raise KeyError(f"Session {session_id} not found")
@@ -140,6 +190,43 @@ class SessionService:
                 "type": "VERIFICATION_UPDATE",
                 "verification": v.model_dump(),
             })
+
+        # Persist verification to database asynchronously
+        try:
+            from sqlalchemy import select
+            from app.core.database import db_manager
+            from app.models.tables import SimulationSession as DBSession
+            from app.models.tables import TraineeVerification as DBVerification
+
+            if db_manager._initialized and db_manager.session_factory:
+                async with db_manager.session_factory() as db_session:
+                    stmt = select(DBSession).where(DBSession.session_code == session_id)
+                    res = await db_session.execute(stmt)
+                    db_sess = res.scalar_one_or_none()
+                    if not db_sess:
+                        db_sess = DBSession(
+                            session_code=session_id,
+                            status=state_mgr.status.value,
+                            current_sim_time=state_mgr.clock.current_sim_time,
+                        )
+                        db_session.add(db_sess)
+                        await db_session.flush()
+
+                    db_ver = DBVerification(
+                        session_id=db_sess.id,
+                        user_id=from_role.value,
+                        from_role=from_role.value,
+                        to_role=request.to_role.value,
+                        target_entity=request.target_entity_id,
+                        query_text=request.query,
+                        response_text=v.response,
+                        status=v.status,
+                        sim_timestamp=v.sim_timestamp,
+                    )
+                    db_session.add(db_ver)
+                    await db_session.commit()
+        except Exception as e:
+            logger.warn("Verification database persistence fallback", error=str(e))
 
         return v
 

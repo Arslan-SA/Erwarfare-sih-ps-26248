@@ -11,6 +11,8 @@ __pycache__/
 *.pyc
 .venv/
 .pytest_cache/
+*.db
+*.sqlite*
 
 # Environment files & secrets
 .env
