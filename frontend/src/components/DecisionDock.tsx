@@ -7,6 +7,7 @@ export default function DecisionDock() {
   const {
     currentRole,
     simTime,
+    groundTruthEntities,
     feeds,
     decisions,
     submitDecision,
@@ -14,9 +15,9 @@ export default function DecisionDock() {
   } = useSimulation();
 
   const [action, setAction] = useState<TraineeDecision["action"]>("HOLD_VERIFY");
-  const [targetEntityId, setTargetEntityId] = useState<string>("TARGET_X");
+  const [targetEntityId, setTargetEntityId] = useState<string>("TRK-002");
   const [confidence, setConfidence] = useState<number>(75);
-  const [assumedRisk, setAssumedRisk] = useState<string>("Civilian air traffic disruption & collateral damage");
+  const [assumedRisk, setAssumedRisk] = useState<string>("Civilian maritime collateral damage / Misidentification under EW");
   const [rationale, setRationale] = useState<string>("");
   const [selectedEvidenceIds, setSelectedEvidenceIds] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState<boolean>(false);
@@ -139,8 +140,11 @@ export default function DecisionDock() {
                 onChange={(e) => setTargetEntityId(e.target.value)}
                 className="tactical-input"
               >
-                <option value="TARGET_X">Target X (Fast Air Track)</option>
-                <option value="TARGET_Y">Target Y (Maritime Track)</option>
+                {groundTruthEntities.map((ent) => (
+                  <option key={ent.id} value={ent.id}>
+                    {ent.id}: {ent.name} ({ent.domain} - {ent.classification})
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -170,10 +174,10 @@ export default function DecisionDock() {
                 onChange={(e) => setAssumedRisk(e.target.value)}
                 className="tactical-input"
               >
-                <option value="Civilian air traffic disruption & collateral damage">Civilian air traffic disruption & collateral damage</option>
-                <option value="Hostile penetration due to verification delay">Hostile penetration due to verification delay</option>
-                <option value="Friendly unit fratricide (Blue-on-Blue)">Friendly unit fratricide (Blue-on-Blue)</option>
-                <option value="Electronic warfare deception trap">Electronic warfare deception trap</option>
+                <option value="Civilian maritime collateral damage / Misidentification under EW">Civilian maritime collateral damage / Misidentification under EW</option>
+                <option value="Adversary surface combatant penetration due to verification delay">Adversary surface combatant penetration due to verification delay</option>
+                <option value="Friendly littoral unit fratricide (Blue-on-Blue)">Friendly littoral unit fratricide (Blue-on-Blue)</option>
+                <option value="Electronic warfare deception trap / decoy spoof">Electronic warfare deception trap / decoy spoof</option>
               </select>
             </div>
 

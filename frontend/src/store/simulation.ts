@@ -59,6 +59,12 @@ export interface SimulationState {
   setTimeMultiplier: (mult: number) => void;
   setConnectionStatus: (status: "connected" | "connecting" | "disconnected") => void;
   
+  setGroundTruthEntities: (entities: TacticalEntity[]) => void;
+  setFeeds: (feeds: FeedMessage[]) => void;
+  setDecisions: (decisions: TraineeDecision[]) => void;
+  setVerifications: (verifications: VerificationRequest[]) => void;
+  setAARReport: (report: AAREvaluation) => void;
+
   addFeed: (feed: FeedMessage) => void;
   submitDecision: (decision: Omit<TraineeDecision, "id" | "submittedAtWallTime">) => void;
   requestVerification: (targetEntityId: string, query: string, toRole: Role) => void;
@@ -75,54 +81,56 @@ export interface SimulationState {
 
 const INITIAL_GROUND_TRUTH: TacticalEntity[] = [
   {
-    id: "TARGET_X",
-    name: "Contact X (Air Vector)",
-    domain: "AIR",
-    classification: "HOSTILE",
-    x: 68,
-    y: 35,
-    speedKnots: 480,
-    headingDeg: 245,
-    status: "CONFIRMED",
-    observedByRoles: ["COMMANDER", "UNIT_A"],
-    divergenceNote: "True identity: Hostile Recon Drone. Jamming causes Commander to see delayed fix at T=3.",
+    id: "TRK-001",
+    name: "INS Kora (FPV-Bravo)",
+    domain: "SEA",
+    classification: "FRIENDLY",
+    x: 32,
+    y: 65,
+    speedKnots: 18,
+    headingDeg: 45,
+    status: "ACTIVE",
+    observedByRoles: ["COMMANDER", "UNIT_A", "UNIT_B"],
+    divergenceNote: "Authoritative Blue Force lead littoral corvette operating in Sector 4.",
   },
   {
-    id: "TARGET_Y",
-    name: "Contact Y (Maritime Sector)",
+    id: "TRK-002",
+    name: "Unknown Surface Contact (M/T Ocean Grace / Type 054)",
     domain: "SEA",
     classification: "AMBIGUOUS",
-    x: 42,
-    y: 72,
-    speedKnots: 22,
-    headingDeg: 120,
-    status: "UNKNOWN",
-    observedByRoles: ["COMMANDER", "UNIT_B"],
-    divergenceNote: "True identity: Neutral commercial cargo vessel with malfunctioning transponder.",
+    x: 58,
+    y: 42,
+    speedKnots: 14,
+    headingDeg: 290,
+    status: "ACTIVE",
+    observedByRoles: ["COMMANDER", "UNIT_A", "UNIT_B"],
+    divergenceNote: "Unit A classifies as Hostile Frigate; Unit B reports civil AIS transponder.",
   },
   {
-    id: "UNIT_A_POS",
-    name: "Unit A (Forward Air Defense)",
-    domain: "LAND",
+    id: "TRK-003",
+    name: "P-8I Poseidon Maritime Patrol",
+    domain: "AIR",
     classification: "FRIENDLY",
-    x: 55,
-    y: 40,
-    speedKnots: 0,
-    headingDeg: 0,
+    x: 20,
+    y: 25,
+    speedKnots: 240,
+    headingDeg: 120,
     status: "ACTIVE",
     observedByRoles: ["COMMANDER", "UNIT_A"],
+    divergenceNote: "Long-range maritime surveillance flight vectoring south-east.",
   },
   {
-    id: "UNIT_B_POS",
-    name: "Unit B (Coastal Radar Post)",
-    domain: "LAND",
-    classification: "FRIENDLY",
-    x: 35,
-    y: 65,
-    speedKnots: 0,
-    headingDeg: 0,
+    id: "TRK-004",
+    name: "Boghammer Fast Attack Craft",
+    domain: "SEA",
+    classification: "HOSTILE",
+    x: 82,
+    y: 30,
+    speedKnots: 32,
+    headingDeg: 215,
     status: "ACTIVE",
     observedByRoles: ["COMMANDER", "UNIT_B"],
+    divergenceNote: "Adversary high-speed littoral interdiction craft.",
   },
 ];
 
@@ -132,9 +140,9 @@ const INITIAL_FEEDS: FeedMessage[] = [
     simTimestamp: 0,
     sourceUnit: "HQ COMMAND",
     targetRole: "COMMANDER",
-    domain: "CYBER",
-    title: "Exercise Commenced",
-    content: "Operation Northern Aegis initiated. All units maintain tactical watch in Sector 4.",
+    domain: "SEA",
+    title: "Exercise Commenced - Strait of Malacca",
+    content: "Operation Northern Aegis initiated. High-density maritime choke point under active adversary EW barrage. De-conflict contacts before kinetic action.",
     degradationType: "NORMAL",
   },
 ];
@@ -194,6 +202,12 @@ export const useSimulation = create<SimulationState>()(
       set({ currentUser: null, activeView: "TACTICAL" });
     },
 
+    setGroundTruthEntities: (entities) => set({ groundTruthEntities: entities }),
+    setFeeds: (feeds) => set({ feeds }),
+    setDecisions: (decisions) => set({ decisions }),
+    setVerifications: (verifications) => set({ verifications }),
+    setAARReport: (report) => set({ aarEvaluation: report }),
+
     setCurrentRole: (role) => {
       const { currentUser } = get();
       // Instructors can inspect any station; trainees are locked to their authenticated duty station
@@ -205,8 +219,28 @@ export const useSimulation = create<SimulationState>()(
     },
     setActiveView: (view) => set({ activeView: view }),
     setSimTime: (t) => set({ simTime: t }),
-    setClockRunning: (running) => set({ clockRunning: running }),
-    setTimeMultiplier: (mult) => set({ timeMultiplier: mult }),
+    setClockRunning: (running) => {
+      set({ clockRunning: running });
+      const sessionId = get().currentUser?.sessionId || "SES-MALACCA-001";
+      fetch(`http://${window.location.hostname}:8000/api/sessions/${sessionId}/clock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: running ? "start" : "pause" }),
+      }).catch(() => {
+        // Fallback for standalone prototype mode
+      });
+    },
+    setTimeMultiplier: (mult) => {
+      set({ timeMultiplier: mult });
+      const sessionId = get().currentUser?.sessionId || "SES-MALACCA-001";
+      fetch(`http://${window.location.hostname}:8000/api/sessions/${sessionId}/clock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "resume", time_multiplier: mult }),
+      }).catch(() => {
+        // Fallback for standalone prototype mode
+      });
+    },
     setConnectionStatus: (status) => set({ connectionStatus: status }),
 
     addFeed: (feed) => set((state) => ({ feeds: [feed, ...state.feeds] })),
@@ -232,7 +266,66 @@ export const useSimulation = create<SimulationState>()(
         };
       });
 
-      get().triggerAAR();
+      // Synchronize with backend REST API
+      const sessionId = get().currentUser?.sessionId || "SES-MALACCA-001";
+      fetch(`http://${window.location.hostname}:8000/api/sessions/${sessionId}/decisions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sim_timestamp: decisionData.simTimestamp,
+          role: decisionData.role,
+          action: decisionData.action,
+          target_entity_id: decisionData.targetEntityId,
+          confidence_score: decisionData.confidenceScore,
+          rationale: decisionData.rationale,
+          assumed_risk: decisionData.assumedRisk,
+          evidence_message_ids: decisionData.evidenceMessageIds,
+        }),
+      }).then(async (res) => {
+        if (res.ok) {
+          // If backend accepted, refresh authoritative AAR
+          try {
+            const aarRes = await fetch(`http://${window.location.hostname}:8000/api/sessions/${sessionId}/aar`);
+            if (aarRes.ok) {
+              const aarData = await aarRes.json();
+              get().setAARReport({
+                sessionId: aarData.session_id,
+                decisionMomentT: aarData.decision_moment_t,
+                classification: aarData.classification,
+                automatedScores: {
+                  responseLatencySec: aarData.automated_scores.response_latency_sec,
+                  latencyScore: aarData.automated_scores.latency_score,
+                  verificationAttempts: aarData.automated_scores.verification_attempts,
+                  verificationScore: aarData.automated_scores.verification_score,
+                  informationSharingScore: aarData.automated_scores.information_sharing_score,
+                  overallAutomated: aarData.automated_scores.overall_automated,
+                },
+                instructorScores: aarData.instructor_scores ? {
+                  situationalAwareness: aarData.instructor_scores.situational_awareness,
+                  riskManagement: aarData.instructor_scores.risk_management,
+                  adaptability: aarData.instructor_scores.adaptability,
+                  overallInstructor: aarData.instructor_scores.overall_instructor,
+                } : {
+                  situationalAwareness: 4.0,
+                  riskManagement: 4.0,
+                  adaptability: 4.0,
+                  overallInstructor: 80.0,
+                },
+                finalCompositeScore: aarData.final_composite_score,
+                reasoningQuality: aarData.reasoning_quality,
+                outcomeQuality: aarData.outcome_quality,
+                evaluatorNotes: aarData.evaluator_notes || "",
+              });
+            }
+          } catch {
+            get().triggerAAR();
+          }
+        } else {
+          get().triggerAAR();
+        }
+      }).catch(() => {
+        get().triggerAAR();
+      });
     },
 
     requestVerification: (targetEntityId, query, toRole) => {
@@ -251,6 +344,35 @@ export const useSimulation = create<SimulationState>()(
 
       set((state) => ({ verifications: [newReq, ...state.verifications] }));
 
+      // Dispatch to authoritative backend
+      const sessionId = get().currentUser?.sessionId || "SES-MALACCA-001";
+      fetch(`http://${window.location.hostname}:8000/api/sessions/${sessionId}/verifications?from_role=${currentRole}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to_role: toRole,
+          target_entity_id: targetEntityId,
+          query,
+        }),
+      }).then(async (res) => {
+        if (res.ok) {
+          const vData = await res.json();
+          set((state) => ({
+            verifications: state.verifications.map((v) =>
+              v.id === newReq.id
+                ? {
+                    ...v,
+                    status: vData.status,
+                    response: vData.response,
+                  }
+                : v
+            ),
+          }));
+        }
+      }).catch(() => {
+        // Fallback simulated response
+      });
+
       if (!isSevered) {
         setTimeout(() => {
           set((state) => ({
@@ -261,8 +383,8 @@ export const useSimulation = create<SimulationState>()(
                     status: "ANSWERED",
                     response:
                       toRole === "UNIT_A"
-                        ? "Unit A radar reports contact bearing 245, confirmed hostile electronic signature."
-                        : "Unit B optical sensors report vessel drifting with no weapon emissions. High ambiguity.",
+                        ? `[Unit A] Secondary Doppler radar lock on ${targetEntityId}: RCS indicates Type 054 frigate signature.`
+                        : `[Unit B] Optical & ESM intercept on ${targetEntityId}: Transponder AIS-8829 confirms civil tanker M/T Ocean Grace.`,
                   }
                 : v
             ),
@@ -272,12 +394,12 @@ export const useSimulation = create<SimulationState>()(
                 simTimestamp: get().simTime,
                 sourceUnit: toRole,
                 targetRole: "COMMANDER",
-                domain: toRole === "UNIT_A" ? "AIR" : "SEA",
-                title: `Verification Response: ${toRole}`,
+                domain: "SEA",
+                title: `Verification Telemetry: ${toRole}`,
                 content:
                   toRole === "UNIT_A"
-                    ? "Target X confirmed hostile UAV signature on pulse doppler radar. Divergence resolved."
-                    : "Target Y visual contact shows commercial fishing/cargo vessel. Not hostile.",
+                    ? `[Unit A] Re-verified ${targetEntityId}. Radar profile consistent with warship; weapon radar emissions detected.`
+                    : `[Unit B] Re-verified ${targetEntityId}. Visual inspection confirms civil tanker profile with no offensive weapon systems.`,
                 degradationType: "NORMAL",
                 isVerified: true,
               },
@@ -296,7 +418,17 @@ export const useSimulation = create<SimulationState>()(
       }));
     },
 
-    setEWIntensity: (intensity) => set({ ewIntensity: intensity }),
+    setEWIntensity: (intensity) => {
+      set({ ewIntensity: intensity });
+      const sessionId = get().currentUser?.sessionId || "SES-MALACCA-001";
+      fetch(`http://${window.location.hostname}:8000/api/sessions/${sessionId}/instructor/ew-intensity`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ intensity }),
+      }).catch(() => {
+        // Fallback for standalone mode
+      });
+    },
 
     toggleCommsLink: (unit) => {
       set((state) => {
@@ -314,6 +446,20 @@ export const useSimulation = create<SimulationState>()(
             : `TACTICAL: Datalink re-established with ${unit.toUpperCase()}.`,
           degradationType: nextState ? "DROPOUT" : "NORMAL",
         };
+
+        const sessionId = get().currentUser?.sessionId || "SES-MALACCA-001";
+        fetch(`http://${window.location.hostname}:8000/api/sessions/${sessionId}/instructor/sever-comms`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            role_a: "COMMANDER",
+            role_b: unit === "unitA" ? "UNIT_A" : "UNIT_B",
+            sever: nextState,
+          }),
+        }).catch(() => {
+          // Fallback for standalone mode
+        });
+
         return { commsSeveredUnits: newComms, feeds: [alertFeed, ...state.feeds] };
       });
     },
@@ -325,28 +471,53 @@ export const useSimulation = create<SimulationState>()(
           simTimestamp: state.simTime,
           sourceUnit: "UNIT_A (RADAR)",
           targetRole: "COMMANDER",
-          domain: "AIR",
-          title: "CONFLICT ALERT: Target X Confirmed Hostile",
-          content: "Unit A radar telemetry locks Target X as Armed Combat Drone on rapid attack vector.",
+          domain: "SEA",
+          title: "CONFLICT ALERT: TRK-002 Radar Lock",
+          content: "Unit A targeting radar locks TRK-002 as armed adversary frigate on intercept course.",
           degradationType: "CONFLICTING",
           divergenceVariant: "VARIANT_A",
         };
         const msgB: FeedMessage = {
           id: `CONF-B-${Date.now()}`,
           simTimestamp: state.simTime,
-          sourceUnit: "UNIT_B (ELINT)",
+          sourceUnit: "UNIT_B (AIS)",
           targetRole: "COMMANDER",
-          domain: "AIR",
-          title: "CONFLICT ALERT: Target X Civilian IFF Transponder",
-          content: "Unit B intercepts Mode 3/A transponder code 7700 (Emergency Airliner) at Target X coordinates.",
+          domain: "SEA",
+          title: "CONFLICT ALERT: TRK-002 Commercial AIS Beacon",
+          content: "Unit B intercepts AIS transponder for oil tanker M/T Ocean Grace on TRK-002 coordinates.",
           degradationType: "CONFLICTING",
           divergenceVariant: "VARIANT_B",
         };
+
+        const sessionId = get().currentUser?.sessionId || "SES-MALACCA-001";
+        fetch(`http://${window.location.hostname}:8000/api/sessions/${sessionId}/instructor/inject`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            injection_type: "INJECT_CONFLICT",
+            target_unit: "UNIT_A",
+            payload: {
+              content: "Contradictory radar signature vs civil AIS transponder on TRK-002.",
+            },
+          }),
+        }).catch(() => {
+          // Fallback for standalone mode
+        });
+
         return { feeds: [msgA, msgB, ...state.feeds] };
       });
     },
 
     resetSimulation: () => {
+      const sessionId = get().currentUser?.sessionId || "SES-MALACCA-001";
+      fetch(`http://${window.location.hostname}:8000/api/sessions/${sessionId}/clock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "stop" }),
+      }).catch(() => {
+        // Fallback for standalone mode
+      });
+
       set({
         simTime: 0,
         clockRunning: false,
@@ -370,7 +541,7 @@ export const useSimulation = create<SimulationState>()(
       const rationaleLength = lastDecision ? lastDecision.rationale.trim().length : 0;
       
       const hasGoodReasoning = (hasVerification || hasStructuredEvidence) && rationaleLength > 20;
-      const outcomeSuccess = lastDecision?.action === "ENGAGE" || lastDecision?.action === "HOLD_VERIFY";
+      const outcomeSuccess = lastDecision?.action === "HOLD_VERIFY" || lastDecision?.action === "ENGAGE";
 
       let classification: "OPTIMAL" | "DEFENSIBLE" | "LUCKY_GUESS" | "CRITICAL_FAILURE";
       if (hasGoodReasoning && outcomeSuccess) {
@@ -389,7 +560,7 @@ export const useSimulation = create<SimulationState>()(
       const overallAutomated = Math.round((latencyScore * 0.3) + (verificationScore * 0.4) + (sharingScore * 0.3));
 
       const evaluation: AAREvaluation = {
-        sessionId: "SESSION-SIH26248-PROTOTYPE",
+        sessionId: get().currentUser?.sessionId || "SES-MALACCA-001",
         decisionMomentT: lastDecision ? lastDecision.simTimestamp : 5,
         classification,
         automatedScores: {
@@ -411,7 +582,7 @@ export const useSimulation = create<SimulationState>()(
         outcomeQuality: outcomeSuccess ? "GOOD" : "BAD",
         evaluatorNotes:
           classification === "DEFENSIBLE" || classification === "OPTIMAL"
-            ? "Trainee effectively navigated conflicting reports, initiated verification across units, and submitted a defensible tactical decision under heavy cyber degradation."
+            ? "Trainee effectively navigated conflicting reports on TRK-002, initiated cross-verification across units, and submitted a defensible tactical decision under heavy cyber degradation."
             : classification === "LUCKY_GUESS"
             ? "Trainee achieved a favorable tactical result but failed to verify conflicting sensor feeds or document defensible evidence. Scored low to discourage reckless guessing."
             : "Critical failure: Trainee acted on incomplete, degraded information without cross-checking units, leading to unmitigated tactical risk.",
@@ -430,17 +601,31 @@ export const useSimulation = create<SimulationState>()(
           (state.aarEvaluation.automatedScores.overallAutomated * 0.4) + (overallInstructor * 0.6)
         );
 
-        return {
-          aarEvaluation: {
-            ...state.aarEvaluation,
-            instructorScores: {
-              ...scores,
-              overallInstructor,
-            },
-            finalCompositeScore,
-            evaluatorNotes: scores.evaluatorNotes || state.aarEvaluation.evaluatorNotes,
+        const updatedReport: AAREvaluation = {
+          ...state.aarEvaluation,
+          instructorScores: {
+            ...scores,
+            overallInstructor,
           },
+          finalCompositeScore,
+          evaluatorNotes: scores.evaluatorNotes || state.aarEvaluation.evaluatorNotes,
         };
+
+        const sessionId = get().currentUser?.sessionId || "SES-MALACCA-001";
+        fetch(`http://${window.location.hostname}:8000/api/sessions/${sessionId}/aar/rubric`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            situational_awareness: scores.situationalAwareness,
+            risk_management: scores.riskManagement,
+            adaptability: scores.adaptability,
+            evaluator_notes: scores.evaluatorNotes,
+          }),
+        }).catch(() => {
+          // Fallback for standalone mode
+        });
+
+        return { aarEvaluation: updatedReport };
       });
     },
   }))

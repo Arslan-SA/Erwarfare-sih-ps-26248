@@ -23,7 +23,13 @@ class Settings(BaseSettings):
     WS_HEARTBEAT_INTERVAL: int = 15  # seconds
 
     # CORS
-    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+    ]
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

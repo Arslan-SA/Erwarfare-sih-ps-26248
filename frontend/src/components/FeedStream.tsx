@@ -9,9 +9,13 @@ interface FeedStreamProps {
 export default function FeedStream({ onOpenVerification }: FeedStreamProps) {
   const { feeds, currentRole } = useSimulation();
 
-  // Filter feeds delivered to this role (Instructors see everything)
+  // Filter feeds delivered to this role (Instructors see everything; subordinates only see their own or broadcast)
   const roleFeeds = feeds.filter(
-    (f) => currentRole === "INSTRUCTOR" || f.targetRole === currentRole || f.targetRole === "COMMANDER"
+    (f) =>
+      currentRole === "INSTRUCTOR" ||
+      f.targetRole === currentRole ||
+      (f.targetRole as string) === "ALL" ||
+      (currentRole === "COMMANDER" && (f.targetRole === "COMMANDER" || (f.targetRole as string) === "ALL"))
   );
 
   const hasConflict = roleFeeds.some((f) => f.degradationType === "CONFLICTING");
@@ -45,7 +49,7 @@ export default function FeedStream({ onOpenVerification }: FeedStreamProps) {
               SENSOR CONFLICT IN PROGRESS
             </div>
             <div style={{ fontSize: "0.75rem", color: "#fef08a" }}>
-              Incongruent reports received on Target X. Cross-examination recommended before kinetic engagement.
+              Incongruent sensor reports on TRK-002 (Unit A Hostile Frigate radar lock vs Unit B Civil AIS transponder). Cross-examination recommended before kinetic engagement.
             </div>
           </div>
           {onOpenVerification && (

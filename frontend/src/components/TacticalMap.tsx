@@ -132,19 +132,20 @@ export default function TacticalMap() {
           isVisible = true; // Omniscient ground truth
         } else if (currentRole === "COMMANDER") {
           isVisible = true;
-          if (entity.id === "TARGET_X" && simTime >= 3) {
+          if (entity.id === "TRK-002" && (simTime >= 2 || ewIntensity > 0)) {
             displayedStatus = "DELAYED";
-            displayX += (Math.sin(simTime * 2) * 8);
+            displayX += Math.sin(simTime * 2 + entity.headingDeg) * Math.min(10, Math.max(3, ewIntensity / 10));
+            displayY += Math.cos(simTime * 2 + entity.headingDeg) * Math.min(10, Math.max(3, ewIntensity / 10));
           }
         } else if (currentRole === "UNIT_A") {
-          isVisible = entity.id === "UNIT_A_POS" || entity.id === "TARGET_X";
-          if (entity.id === "TARGET_X") {
+          isVisible = entity.observedByRoles?.includes("UNIT_A") || entity.id === "TRK-001" || entity.id === "TRK-002" || entity.id === "TRK-003";
+          if (entity.id === "TRK-002") {
             displayedClassification = "HOSTILE";
             displayedStatus = "CONFIRMED";
           }
         } else if (currentRole === "UNIT_B") {
-          isVisible = entity.id === "UNIT_B_POS" || entity.id === "TARGET_Y" || entity.id === "TARGET_X";
-          if (entity.id === "TARGET_X" && simTime >= 3) {
+          isVisible = entity.observedByRoles?.includes("UNIT_B") || entity.id === "TRK-001" || entity.id === "TRK-002" || entity.id === "TRK-004";
+          if (entity.id === "TRK-002") {
             displayedClassification = "AMBIGUOUS";
             displayedStatus = "UNKNOWN";
           }
@@ -152,8 +153,9 @@ export default function TacticalMap() {
 
         if (!isVisible) return;
 
-        const isSevered = (entity.id === "UNIT_A_POS" && commsSeveredUnits.unitA) ||
-                          (entity.id === "UNIT_B_POS" && commsSeveredUnits.unitB);
+        const isSevered = (currentRole === "UNIT_A" && commsSeveredUnits.unitA) ||
+                          (currentRole === "UNIT_B" && commsSeveredUnits.unitB) ||
+                          (entity.id === "TRK-001" && commsSeveredUnits.unitA);
 
         ctx.save();
         const isHostile = displayedClassification === "HOSTILE";

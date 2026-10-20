@@ -1,38 +1,62 @@
 // src/components/AARView.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSimulation } from "../store/simulation";
 
 export default function AARView() {
   const {
     aarEvaluation,
+    currentUser,
     decisions,
     snapshotAtT5,
     updateInstructorRubric,
+    setAARReport,
     setActiveView,
   } = useSimulation();
 
-  const [situationalAwareness, setSituationalAwareness] = useState<number>(
-    aarEvaluation?.instructorScores.situationalAwareness || 4.5
-  );
-  const [riskManagement, setRiskManagement] = useState<number>(
-    aarEvaluation?.instructorScores.riskManagement || 4.5
-  );
-  const [adaptability, setAdaptability] = useState<number>(
-    aarEvaluation?.instructorScores.adaptability || 4.0
-  );
-  const [evaluatorNotes, setEvaluatorNotes] = useState<string>(
-    aarEvaluation?.evaluatorNotes || ""
-  );
-
-  const handleUpdateScores = () => {
-    updateInstructorRubric({
-      situationalAwareness,
-      riskManagement,
-      adaptability,
-      evaluatorNotes,
-    });
-    alert("Instructor rubric and composite score updated.");
-  };
+  // Attempt backend AAR fetch if not already present
+  useEffect(() => {
+    if (!aarEvaluation && currentUser?.sessionId) {
+      const sessionId = currentUser.sessionId || "SES-MALACCA-001";
+      fetch(`/api/sessions/${sessionId}/aar`)
+        .then((res) => {
+          if (res.ok) return res.json();
+          throw new Error("AAR not ready");
+        })
+        .then((aarData) => {
+          setAARReport({
+            sessionId: aarData.session_id,
+            decisionMomentT: aarData.decision_moment_t,
+            classification: aarData.classification,
+            automatedScores: {
+              responseLatencySec: aarData.automated_scores.response_latency_sec,
+              latencyScore: aarData.automated_scores.latency_score,
+              verificationAttempts: aarData.automated_scores.verification_attempts,
+              verificationScore: aarData.automated_scores.verification_score,
+              informationSharingScore: aarData.automated_scores.information_sharing_score,
+              overallAutomated: aarData.automated_scores.overall_automated,
+            },
+            instructorScores: aarData.instructor_scores ? {
+              situationalAwareness: aarData.instructor_scores.situational_awareness,
+              riskManagement: aarData.instructor_scores.risk_management,
+              adaptability: aarData.instructor_scores.adaptability,
+              overallInstructor: aarData.instructor_scores.overall_instructor,
+            } : {
+              situationalAwareness: 4.0,
+              riskManagement: 4.0,
+              adaptability: 4.0,
+              overallInstructor: 80.0,
+            },
+            finalCompositeScore: aarData.final_composite_score,
+            reasoningQuality: aarData.reasoning_quality,
+            outcomeQuality: aarData.outcome_quality,
+            evaluatorNotes: aarData.evaluator_notes || "",
+          });
+        })
+        .catch(() => {
+          // Backend session AAR not generated yet
+        });
+    }
+  }, [aarEvaluation, currentUser, setAARReport]);
 
   const handleExportCSV = () => {
     if (!aarEvaluation) return;
@@ -281,77 +305,120 @@ export default function AARView() {
         </div>
 
         {/* Right: Human Instructor Rubric Form */}
-        <div className="glass-panel" style={{ padding: "14px" }}>
-          <div className="section-header" style={{ padding: "0 0 10px 0", color: "#a855f7" }}>
-            <span>Instructor Human Evaluation Rubric</span>
+        <InstructorRubricEditor
+          key={`${aarEvaluation.sessionId}-${aarEvaluation.finalCompositeScore}`}
+          evaluation={aarEvaluation}
+          onUpdate={updateInstructorRubric}
+        />
+      </div>
+    </div>
+  );
+}
+
+interface RubricEditorProps {
+  evaluation: any;
+  onUpdate: (scores: {
+    situationalAwareness: number;
+    riskManagement: number;
+    adaptability: number;
+    evaluatorNotes: string;
+  }) => void;
+}
+
+function InstructorRubricEditor({ evaluation, onUpdate }: RubricEditorProps) {
+  const [situationalAwareness, setSituationalAwareness] = useState<number>(
+    evaluation.instructorScores?.situationalAwareness || 4.5
+  );
+  const [riskManagement, setRiskManagement] = useState<number>(
+    evaluation.instructorScores?.riskManagement || 4.5
+  );
+  const [adaptability, setAdaptability] = useState<number>(
+    evaluation.instructorScores?.adaptability || 4.0
+  );
+  const [evaluatorNotes, setEvaluatorNotes] = useState<string>(
+    evaluation.evaluatorNotes || ""
+  );
+
+  const handleSave = () => {
+    onUpdate({
+      situationalAwareness,
+      riskManagement,
+      adaptability,
+      evaluatorNotes,
+    });
+    alert("Instructor rubric and composite score updated.");
+  };
+
+  return (
+    <div className="glass-panel" style={{ padding: "14px" }}>
+      <div className="section-header" style={{ padding: "0 0 10px 0", color: "#a855f7" }}>
+        <span>Instructor Human Evaluation Rubric</span>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "8px" }}>
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-dim)" }}>
+            <span>Situational Awareness</span>
+            <span style={{ color: "var(--text-cyan)", fontWeight: 700 }}>{situationalAwareness} / 5.0</span>
           </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "8px" }}>
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-dim)" }}>
-                <span>Situational Awareness</span>
-                <span style={{ color: "var(--text-cyan)", fontWeight: 700 }}>{situationalAwareness} / 5.0</span>
-              </div>
-              <input
-                type="range"
-                min="1"
-                max="5"
-                step="0.5"
-                value={situationalAwareness}
-                onChange={(e) => setSituationalAwareness(Number(e.target.value))}
-                className="tactical-slider"
-              />
-            </div>
-
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-dim)" }}>
-                <span>Risk Management & Caution</span>
-                <span style={{ color: "var(--text-cyan)", fontWeight: 700 }}>{riskManagement} / 5.0</span>
-              </div>
-              <input
-                type="range"
-                min="1"
-                max="5"
-                step="0.5"
-                value={riskManagement}
-                onChange={(e) => setRiskManagement(Number(e.target.value))}
-                className="tactical-slider"
-              />
-            </div>
-
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-dim)" }}>
-                <span>Adaptability under Comms Blackout</span>
-                <span style={{ color: "var(--text-cyan)", fontWeight: 700 }}>{adaptability} / 5.0</span>
-              </div>
-              <input
-                type="range"
-                min="1"
-                max="5"
-                step="0.5"
-                value={adaptability}
-                onChange={(e) => setAdaptability(Number(e.target.value))}
-                className="tactical-slider"
-              />
-            </div>
-
-            <div>
-              <label style={{ display: "block", fontSize: "0.75rem", color: "var(--text-dim)", marginBottom: "4px" }}>
-                Instructor Debrief Commentary
-              </label>
-              <textarea
-                value={evaluatorNotes}
-                onChange={(e) => setEvaluatorNotes(e.target.value)}
-                rows={2}
-                className="tactical-input"
-              />
-            </div>
-
-            <button onClick={handleUpdateScores} className="btn-tactical btn-cyan" style={{ width: "100%", padding: "8px", fontSize: "0.75rem" }}>
-              Save Rubric Evaluation
-            </button>
-          </div>
+          <input
+            type="range"
+            min="1"
+            max="5"
+            step="0.5"
+            value={situationalAwareness}
+            onChange={(e) => setSituationalAwareness(Number(e.target.value))}
+            className="tactical-slider"
+          />
         </div>
+
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-dim)" }}>
+            <span>Risk Management & Caution</span>
+            <span style={{ color: "var(--text-cyan)", fontWeight: 700 }}>{riskManagement} / 5.0</span>
+          </div>
+          <input
+            type="range"
+            min="1"
+            max="5"
+            step="0.5"
+            value={riskManagement}
+            onChange={(e) => setRiskManagement(Number(e.target.value))}
+            className="tactical-slider"
+          />
+        </div>
+
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-dim)" }}>
+            <span>Adaptability under Comms Blackout</span>
+            <span style={{ color: "var(--text-cyan)", fontWeight: 700 }}>{adaptability} / 5.0</span>
+          </div>
+          <input
+            type="range"
+            min="1"
+            max="5"
+            step="0.5"
+            value={adaptability}
+            onChange={(e) => setAdaptability(Number(e.target.value))}
+            className="tactical-slider"
+          />
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: "0.75rem", color: "var(--text-dim)", marginBottom: "4px" }}>
+            Instructor Debrief Commentary
+          </label>
+          <textarea
+            value={evaluatorNotes}
+            onChange={(e) => setEvaluatorNotes(e.target.value)}
+            rows={2}
+            className="tactical-input"
+          />
+        </div>
+
+        <button onClick={handleSave} className="btn-tactical btn-cyan" style={{ width: "100%", padding: "8px", fontSize: "0.75rem" }}>
+          Save Rubric Evaluation
+        </button>
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException, Response
 from app.schemas.simulation import (
     AARResultSchema,
     InstructorScores,
+    RubricSubmissionRequest,
 )
 from app.services.aar_service import AARService
 from app.services.session_service import session_service
@@ -38,14 +39,25 @@ def get_dual_timeline(session_id: str) -> list[dict[str, Any]]:
 @router.post("/rubric", response_model=AARResultSchema)
 def submit_instructor_rubric(
     session_id: str,
-    scores: InstructorScores,
-    notes: Optional[str] = None,
+    submission: RubricSubmissionRequest,
 ) -> AARResultSchema:
     """Submit instructor subjective scoring and recalculate final composite score."""
     mgr = session_service.get_session(session_id)
     if not mgr:
         raise HTTPException(status_code=404, detail="Session not found")
-    return AARService.evaluate_session(mgr, instructor_scores=scores, evaluator_notes=notes or "")
+
+    overall = submission.overall_instructor
+    if overall is None or overall <= 0:
+        overall = ((submission.situational_awareness + submission.risk_management + submission.adaptability) / 15.0) * 100.0
+
+    scores = InstructorScores(
+        situational_awareness=submission.situational_awareness,
+        risk_management=submission.risk_management,
+        adaptability=submission.adaptability,
+        overall_instructor=round(overall, 1),
+    )
+    notes = submission.notes or submission.evaluator_notes or ""
+    return AARService.evaluate_session(mgr, instructor_scores=scores, evaluator_notes=notes)
 
 
 @router.get("/export/csv")

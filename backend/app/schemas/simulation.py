@@ -162,7 +162,16 @@ class InstructorScores(BaseModel):
     situational_awareness: float = Field(ge=1, le=5)
     risk_management: float = Field(ge=1, le=5)
     adaptability: float = Field(ge=1, le=5)
-    overall_instructor: float
+    overall_instructor: float = 0.0
+
+
+class RubricSubmissionRequest(BaseModel):
+    situational_awareness: float = Field(default=4.0, ge=1, le=5)
+    risk_management: float = Field(default=4.0, ge=1, le=5)
+    adaptability: float = Field(default=4.0, ge=1, le=5)
+    overall_instructor: Optional[float] = None
+    notes: Optional[str] = ""
+    evaluator_notes: Optional[str] = ""
 
 
 class AARResultSchema(BaseModel):

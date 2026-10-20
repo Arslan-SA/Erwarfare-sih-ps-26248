@@ -9,12 +9,12 @@ interface VerificationModalProps {
 }
 
 export default function VerificationModal({ isOpen, onClose }: VerificationModalProps) {
-  const { verifications, requestVerification, commsSeveredUnits } = useSimulation();
+  const { verifications, requestVerification, commsSeveredUnits, groundTruthEntities } = useSimulation();
 
   const [toRole, setToRole] = useState<Role>("UNIT_A");
-  const [targetEntityId, setTargetEntityId] = useState<string>("TARGET_X");
+  const [targetEntityId, setTargetEntityId] = useState<string>("TRK-002");
   const [query, setQuery] = useState<string>(
-    "Request secondary pulse-doppler scan on Target X to confirm if track is genuine military UAV or commercial transponder decoy."
+    "Request secondary pulse-doppler scan and ESM correlation on TRK-002 to confirm if contact is genuine adversary frigate or commercial transponder decoy."
   );
 
   if (!isOpen) return null;
@@ -59,8 +59,8 @@ export default function VerificationModal({ isOpen, onClose }: VerificationModal
                   onChange={(e) => setToRole(e.target.value as Role)}
                   className="tactical-input"
                 >
-                  <option value="UNIT_A">Unit A (Forward Air Defense)</option>
-                  <option value="UNIT_B">Unit B (Coastal Radar Post)</option>
+                  <option value="UNIT_A">Unit A (Forward Air Defense / Radar)</option>
+                  <option value="UNIT_B">Unit B (Coastal Radar Post / AIS ESM)</option>
                 </select>
               </div>
 
@@ -73,8 +73,11 @@ export default function VerificationModal({ isOpen, onClose }: VerificationModal
                   onChange={(e) => setTargetEntityId(e.target.value)}
                   className="tactical-input"
                 >
-                  <option value="TARGET_X">Target X (Air Sector 4)</option>
-                  <option value="TARGET_Y">Target Y (Maritime Track)</option>
+                  {groundTruthEntities.map((ent) => (
+                    <option key={ent.id} value={ent.id}>
+                      {ent.id}: {ent.name} ({ent.domain} - {ent.classification})
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
