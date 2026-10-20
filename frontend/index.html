@@ -1,12 +1,52 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>C4ISR MULTI-DOMAIN COMMAND &amp; BATTLE MANAGEMENT SYSTEM // STRAIT OF MALACCA</title>
+    <!-- Tailwind CSS v3 with Plugins -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- Tailwind Config for Tactical Color Palette & Custom Grid -->
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              tactical: {
+                black: '#040705',
+                bg: '#050a07',
+                panel: '#08110c',
+                'panel-light': '#0c1a13',
+                border: '#11291d',
+                'border-bright': '#174730',
+                cyan: '#00ff66',
+                'cyan-glow': '#34d399',
+                amber: '#f59e0b',
+                'amber-glow': '#fbbf24',
+                red: '#ef4444',
+                'red-glow': '#f87171',
+                emerald: '#00ff66',
+                'emerald-dim': '#064e3b'
+              }
+            },
+            fontFamily: {
+              mono: ['"JetBrains Mono"', '"Share Tech Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace']
+            },
+            fontSize: {
+              '2xs': '0.625rem',
+              '3xs': '0.5rem'
+            }
+          }
+        }
+      }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,600;0,800;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   </head>
-  <body>
+  <body class="bg-tactical-black text-emerald-100/80 antialiased selection:bg-emerald-500 selection:text-black">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

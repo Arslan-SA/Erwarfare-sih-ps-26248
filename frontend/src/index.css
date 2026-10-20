@@ -36,18 +36,18 @@
 }
 
 body {
-  background-color: var(--bg-primary);
-  color: var(--text-main);
-  font-family: var(--font-sans);
+  background-color: #040705;
+  color: #92b8a0;
+  font-family: 'JetBrains Mono', 'Share Tech Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   line-height: 1.5;
-  overflow: hidden;
-  height: 100vh;
+  overflow-x: hidden;
+  min-height: 100vh;
   width: 100vw;
   -webkit-font-smoothing: antialiased;
 }
 
 #root {
-  height: 100%;
+  min-height: 100vh;
   width: 100%;
 }
 
@@ -558,3 +558,61 @@ body {
 .quadrant-box.defensible { border-color: #38bdf8; }
 .quadrant-box.lucky_guess { border-color: #fbbf24; }
 .quadrant-box.critical_failure { border-color: #ef4444; }
+
+/* CRT Aesthetic Layer */
+.crt-overlay {
+  background: linear-gradient(rgba(10, 20, 14, 0) 50%, rgba(0, 0, 0, 0.4) 50%), linear-gradient(90deg, rgba(0, 255, 102, 0.02), rgba(0, 255, 50, 0.01), rgba(0, 0, 0, 0.02));
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+}
+
+.corner-bracket {
+  position: relative;
+}
+.corner-bracket::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 6px;
+  height: 6px;
+  border-top: 2px solid #00ff66;
+  border-left: 2px solid #00ff66;
+  pointer-events: none;
+}
+.corner-bracket::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 6px;
+  height: 6px;
+  border-bottom: 2px solid #00ff66;
+  border-right: 2px solid #00ff66;
+  pointer-events: none;
+}
+
+.corner-bracket-red::before { border-color: #ef4444; }
+.corner-bracket-red::after { border-color: #ef4444; }
+.corner-bracket-amber::before { border-color: #f59e0b; }
+.corner-bracket-amber::after { border-color: #f59e0b; }
+
+/* Radar sweep animation */
+@keyframes radar-sweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-radar {
+  animation: radar-sweep 4s linear infinite;
+  transform-origin: center center;
+}
+
+/* Threat Pulse Warning */
+@keyframes tactical-pulse {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.8)); }
+  50% { opacity: 0.35; filter: drop-shadow(0 0 1px rgba(239, 68, 68, 0.2)); }
+}
+.pulse-danger {
+  animation: tactical-pulse 1.2s ease-in-out infinite;
+}
+
